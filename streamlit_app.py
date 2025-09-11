@@ -63,20 +63,21 @@ mode = st.sidebar.radio(
     index=0
 )
 
-# Adjusted ranges
-n_pages = st.sidebar.slider(
-    "📄 Number of Wikipedia pages (1–4)",
+# 🔄 generic label jo dono modes me sahi lage
+n_results = st.sidebar.slider(
+    "📄 Number of results to retrieve (1–5)",
     min_value=1,
-    max_value=4,
+    max_value=5,
     value=2
 )
 
 max_chars = st.sidebar.slider(
-    "🔤 Max characters per page (100–1500)",
+    "🔤 Max characters to display per result (100–1500)",
     min_value=100,
     max_value=1500,
     value=500
 )
+
 
 # ---------------------------
 # Main Page
