@@ -3,7 +3,7 @@
 This project is a Retrieval-Augmented Generation (RAG) based chatbot that retrieves information from a custom knowledge base and generates accurate answers. It was developed as part of the Complex Computing Problem (CCP) course.  
 
 ## Live Demo
-👉 [Click here to try the chatbot](https://knowledge-chatbot-saad.streamlit.app/)
+👉 [Click here to try the chatbot](https://knowledge-chatbot-saad-zflnfuzqmvtquajdp2jzhu.streamlit.app/)
 
 ---
 
