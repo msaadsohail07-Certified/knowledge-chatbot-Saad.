@@ -78,7 +78,6 @@ max_chars = st.sidebar.slider(
     value=500
 )
 
-
 # ---------------------------
 # Main Page
 # ---------------------------
@@ -86,6 +85,9 @@ st.title("🌐 Knowledge Chatbot — By Saad CCP Project")
 st.markdown(f"**Mode:** {mode}")
 
 query = st.text_input("Enter your question:")
+
+# ✅ Added n_pages to fix error
+n_pages = 5
 
 if st.button("Get Answer"):
     if query.strip() == "":
@@ -139,7 +141,7 @@ st.info(
     **Notes**
     - The first run may download model weights (internet required).  
     - The answers are extractive: taken from retrieved documents or Wikipedia-style content.  
-    - Gemini mode uses Google Gemini API. Make sure `GEMINI_API_KEY` is set in Streamlit secrets.  
+    - Gemini mode uses Google Gemini API. Make sure GEMINI_API_KEY is set in Streamlit secrets.  
     - In Gemini mode, answers may also include references or links.  
     """
 )
