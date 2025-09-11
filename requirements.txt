@@ -2,10 +2,11 @@ streamlit
 faiss-cpu
 sentence-transformers
 PyPDF2
-openai==0.28.0
 numpy
 scikit-learn
 transformers
 torch
 tqdm
 requests
+google-genai
+google-generativeai
