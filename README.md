@@ -9,7 +9,7 @@ This project is a Retrieval-Augmented Generation (RAG) based chatbot that retrie
 
 ## Features
 - Domain-specific knowledge base  
-- Retrieval + Generative AI integration  
+- Retrieval + Google Gemini integration  
 - Simple and clean Streamlit interface  
 - Can run both locally and on the cloud  
 
@@ -18,9 +18,9 @@ This project is a Retrieval-Augmented Generation (RAG) based chatbot that retrie
 ## How to Run Locally
 
 ### 1. Create a virtual environment
-Run this in your **terminal (Command Prompt or PowerShell on Windows, Terminal on Mac/Linux):**
+Run this in your terminal (Command Prompt or PowerShell on Windows, Terminal on Mac/Linux):
+
 ```bash
 python -m venv venv
 venv\Scripts\activate   # Windows
 source venv/bin/activate   # Mac/Linux
-
