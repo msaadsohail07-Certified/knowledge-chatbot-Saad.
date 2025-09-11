@@ -1,9 +1,7 @@
 import streamlit as st
 import faiss, pickle, os
 from sentence_transformers import SentenceTransformer
-
-# ✅ Gemini import
-import google.generativeai as genai  
+import openai  # ✅ added for direct OpenAI API
 
 # ---------------------------
 # Load local FAISS index (safe loader)
@@ -50,7 +48,7 @@ model = load_model()
 # ---------------------------
 # Page config
 # ---------------------------
-st.set_page_config(page_title="Knowledge Chatbot — CCP Project", layout="wide")
+st.set_page_config(page_title="Wikipedia Chatbot", layout="wide")
 
 # ---------------------------
 # Sidebar (Settings)
@@ -59,7 +57,7 @@ st.sidebar.header("⚙️ Settings")
 
 mode = st.sidebar.radio(
     "Operation mode",
-    ["Direct (local engine)", "Gemini (Google AI)"],
+    ["Direct (local engine)", "GPT (OpenAI)"],  # ✅ changed Server mode to GPT
     index=0
 )
 
@@ -81,7 +79,7 @@ max_chars = st.sidebar.slider(
 # ---------------------------
 # Main Page
 # ---------------------------
-st.title("🌐 Knowledge Chatbot — By Saad CCP Project")
+st.title("🌐 Wikipedia Chatbot — By Saad Sohail")
 st.markdown(f"**Mode:** {mode}")
 
 query = st.text_input("Enter your question:")
@@ -101,31 +99,19 @@ if st.button("Get Answer"):
                 st.write(chunks[idx][:max_chars] + ("..." if len(chunks[idx]) > max_chars else ""))
                 st.markdown("---")
 
-        elif mode.startswith("Gemini"):
-            # ✅ Direct Gemini API call with 2 answers + links
+        elif mode.startswith("GPT"):
+            # ✅ Direct OpenAI API call
             try:
-                api_key = os.environ.get("GEMINI_API_KEY") or st.secrets.get("GEMINI_API_KEY")
-                if not api_key:
-                    st.error("❌ Gemini API key not found. Please set GEMINI_API_KEY in secrets.")
-                else:
-                    genai.configure(api_key=api_key)
-                    model = genai.GenerativeModel("gemini-1.5-flash")
-
-                    # multiple answers (2 candidates) + request for links
-                    resp = model.generate_content(
-                        f"{query}\n\nPlease also provide source links or references if possible.",
-                        generation_config={"candidate_count": 2}
-                    )
-
-                    st.subheader("🤖 Gemini Answers")
-                    for i, cand in enumerate(resp.candidates, 1):
-                        if cand.content.parts:
-                            answer = cand.content.parts[0].text
-                            st.markdown(f"**Answer {i}:** {answer}")
-                            st.markdown("---")
-
+                openai.api_key = st.secrets["OPENAI_API_KEY"]
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": query}]
+                )
+                answer = response['choices'][0]['message']['content']
+                st.subheader("🤖 GPT Answer")
+                st.write(answer)
             except Exception as e:
-                st.error(f"❌ Error calling Gemini API: {e}")
+                st.error(f"❌ Error calling OpenAI API: {e}")
 
         else:
             st.error("⚠️ Local Engine not available. Build the index first.")
@@ -137,8 +123,7 @@ st.info(
     """
     **Notes**
     - The first run may download model weights (internet required).  
-    - The answers are extractive: taken from retrieved documents or Wikipedia-style content.  
-    - Gemini mode uses Google Gemini API. Make sure `GEMINI_API_KEY` is set in Streamlit secrets.  
-    - In Gemini mode, answers may also include references or links.  
+    - The answers are extractive: taken from retrieved Wikipedia summaries.  
+    - GPT mode uses OpenAI API. Make sure `OPENAI_API_KEY` is set in Streamlit secrets.  
     """
 )
