@@ -1,7 +1,7 @@
 import streamlit as st
-import requests
 import faiss, pickle, os
 from sentence_transformers import SentenceTransformer
+import openai  # ✅ added for direct OpenAI API
 
 # ---------------------------
 # Load local FAISS index (safe loader)
@@ -57,7 +57,7 @@ st.sidebar.header("⚙️ Settings")
 
 mode = st.sidebar.radio(
     "Operation mode",
-    ["Direct (local engine)", "Server (use FastAPI)"],
+    ["Direct (local engine)", "GPT (OpenAI)"],  # ✅ changed Server mode to GPT
     index=0
 )
 
@@ -76,20 +76,10 @@ max_chars = st.sidebar.slider(
     value=500
 )
 
-# Server URL only if Server mode selected
-server_url = None
-if mode.startswith("Server"):
-    server_url = st.sidebar.text_input(
-        "🌐 Server URL (e.g. http://127.0.0.1:8000)",
-        "http://127.0.0.1:8000"
-    )
-
 # ---------------------------
 # Main Page
 # ---------------------------
 st.title("🌐 Wikipedia Chatbot — By Saad Sohail")
-
-# NEW: Show current mode under title
 st.markdown(f"**Mode:** {mode}")
 
 query = st.text_input("Enter your question:")
@@ -109,22 +99,20 @@ if st.button("Get Answer"):
                 st.write(chunks[idx][:max_chars] + ("..." if len(chunks[idx]) > max_chars else ""))
                 st.markdown("---")
 
-        elif mode.startswith("Server"):
-            # Server API call
+        elif mode.startswith("GPT"):
+            # ✅ Direct OpenAI API call
             try:
-                resp = requests.get(f"{server_url}/ask", params={"question": query})
-                data = resp.json()
-                if "answers" in data:
-                    st.subheader("📖 Wikipedia Results")
-                    for i, ans in enumerate(data["answers"], 1):
-                        st.markdown(f"**Result {i}: {ans['title']}**")
-                        st.write(ans["summary"])
-                        st.markdown(f"[🔗 Read full article]({ans['url']})")
-                        st.markdown("---")
-                else:
-                    st.error("No results from API.")
+                openai.api_key = st.secrets["OPENAI_API_KEY"]
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": query}]
+                )
+                answer = response['choices'][0]['message']['content']
+                st.subheader("🤖 GPT Answer")
+                st.write(answer)
             except Exception as e:
-                st.error(f"❌ Error calling API: {e}")
+                st.error(f"❌ Error calling OpenAI API: {e}")
+
         else:
             st.error("⚠️ Local Engine not available. Build the index first.")
 
@@ -136,6 +124,6 @@ st.info(
     **Notes**
     - The first run may download model weights (internet required).  
     - The answers are extractive: taken from retrieved Wikipedia summaries.  
-    - If you use Server mode, make sure the FastAPI server is running (`uvicorn api_server:app --port 8000`).  
+    - GPT mode uses OpenAI API. Make sure `OPENAI_API_KEY` is set in Streamlit secrets.  
     """
 )
