@@ -1,147 +1,107 @@
 import streamlit as st
-import faiss, pickle, os
-from sentence_transformers import SentenceTransformer
+import os
+import pickle
+import numpy as np
+from google import genai
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
-# ✅ Gemini import
-import google.generativeai as genai  
+st.set_page_config(page_title="PDC Knowledge Chatbot", page_icon="🤖", layout="wide")
 
-# ---------------------------
-# Load local FAISS index (safe loader)
-# ---------------------------
-INDEX_DIR = "index"
-chunks, meta, index = [], [], None
+st.markdown("""
+<style>
+body { background-color: #0F0F1A; }
+.stApp { background-color: #0F0F1A; color: #E0E0FF; }
+</style>
+""", unsafe_allow_html=True)
 
-if os.path.exists(os.path.join(INDEX_DIR, "faiss.index")):
-    index = faiss.read_index(os.path.join(INDEX_DIR, "faiss.index"))
-    with open(os.path.join(INDEX_DIR, "chunks.pkl"), "rb") as f:
-        data = pickle.load(f)
+# Load documents
+@st.cache_resource
+def load_documents():
+    chunks = []
+    data_dir = "data"
+    if os.path.exists(data_dir):
+        for fname in os.listdir(data_dir):
+            if fname.endswith(".txt"):
+                with open(os.path.join(data_dir, fname), "r", encoding="utf-8") as f:
+                    text = f.read()
+                    paragraphs = [p.strip() for p in text.split("\n\n") if len(p.strip()) > 100]
+                    chunks.extend(paragraphs)
+    return chunks
 
-    # Robust loader: handle both dict and list
-    if isinstance(data, dict):
-        chunks = data.get("chunks", [])
-        meta = data.get("meta", [])
-    elif isinstance(data, list):
-        if len(data) > 0 and isinstance(data[0], str):
-            chunks = data
-            meta = [{} for _ in chunks]
-        elif len(data) > 0 and isinstance(data[0], dict):
-            if "text" in data[0]:
-                chunks = [d.get("text", "") for d in data]
-                meta = [d.get("meta", {}) for d in data]
-            elif "chunk" in data[0]:
-                chunks = [d.get("chunk", "") for d in data]
-                meta = [d.get("meta", {}) for d in data]
-            else:
-                chunks = [str(d) for d in data]
-                meta = [{} for _ in chunks]
-        else:
-            chunks = [str(d) for d in data]
-            meta = [{} for _ in chunks]
+@st.cache_resource
+def build_vectorizer(chunks):
+    vectorizer = TfidfVectorizer()
+    matrix = vectorizer.fit_transform(chunks)
+    return vectorizer, matrix
 
-# ---------------------------
-# Model load
-# ---------------------------
-@st.cache_resource(show_spinner=False)
-def load_model():
-    return SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+chunks = load_documents()
+vectorizer, matrix = build_vectorizer(chunks)
 
-model = load_model()
+# Sidebar
+st.sidebar.title("⚙️ Settings")
+mode = st.sidebar.radio("Operation mode", ["Direct (local engine)", "Gemini (Google AI)"])
+n_results = st.sidebar.slider("Number of results to retrieve (1-5)", 1, 5, 2)
+max_chars = st.sidebar.slider("Max characters to display per result (100-1500)", 100, 1500, 500)
 
-# ---------------------------
-# Page config
-# ---------------------------
-st.set_page_config(page_title="Knowledge Chatbot — CCP Project", layout="wide")
-
-# ---------------------------
-# Sidebar (Settings)
-# ---------------------------
-st.sidebar.header("⚙️ Settings")
-
-mode = st.sidebar.radio(
-    "Operation mode",
-    ["Direct (local engine)", "Gemini (Google AI)"],
-    index=0
-)
-
-# 🔄 generic label jo dono modes me sahi lage
-n_results = st.sidebar.slider(
-    "📄 Number of results to retrieve (1–5)",
-    min_value=1,
-    max_value=5,
-    value=2
-)
-
-max_chars = st.sidebar.slider(
-    "🔤 Max characters to display per result (100–1500)",
-    min_value=100,
-    max_value=1500,
-    value=500
-)
-
-# ---------------------------
-# Main Page
-# ---------------------------
-st.title("🌐 Knowledge Chatbot — By Saad CCP Project")
+# Main
+st.title("🌐 PDC Knowledge Chatbot — By Saad")
 st.markdown(f"**Mode:** {mode}")
 
 query = st.text_input("Enter your question:")
-
-# ✅ Added n_pages to fix error
-n_pages = 5
 
 if st.button("Get Answer"):
     if query.strip() == "":
         st.warning("⚠️ Please enter a question.")
     else:
-        if mode.startswith("Direct") and index is not None:
-            # Local FAISS search
-            q_emb = model.encode([query], convert_to_numpy=True)
-            D, I = index.search(q_emb.astype("float32"), k=n_pages)
-
-            st.subheader("📖 Local Engine Results")
-            for rank, idx in enumerate(I[0], 1):
-                st.markdown(f"**Result {rank}:**")
-                st.write(chunks[idx][:max_chars] + ("..." if len(chunks[idx]) > max_chars else ""))
-                st.markdown("---")
+        if mode.startswith("Direct"):
+            if len(chunks) == 0:
+                st.error("❌ No data found. Run fetch_wiki.py first!")
+            else:
+                query_vec = vectorizer.transform([query])
+                scores = cosine_similarity(query_vec, matrix)[0]
+                top_idx = np.argsort(scores)[::-1][:n_results]
+                
+                st.subheader("⬛ Local Engine Results")
+                for rank, idx in enumerate(top_idx, 1):
+                    st.markdown(f"**Result {rank}:**")
+                    st.write(chunks[idx][:max_chars] + ("..." if len(chunks[idx]) > max_chars else ""))
+                    st.markdown("---")
 
         elif mode.startswith("Gemini"):
-            # ✅ Direct Gemini API call with 2 answers + links
             try:
                 api_key = os.environ.get("GEMINI_API_KEY") or st.secrets.get("GEMINI_API_KEY")
                 if not api_key:
                     st.error("❌ Gemini API key not found. Please set GEMINI_API_KEY in secrets.")
                 else:
-                    genai.configure(api_key=api_key)
-                    model = genai.GenerativeModel("gemini-1.5-flash")
+                    client = genai.Client(api_key=api_key)
+                    
+                    # RAG - retrieve context first
+                    query_vec = vectorizer.transform([query])
+                    scores = cosine_similarity(query_vec, matrix)[0]
+                    top_idx = np.argsort(scores)[::-1][:2]
+                    context = "\n\n".join([chunks[i] for i in top_idx if scores[i] > 0])
+                    
+                    prompt = f"""You are a PDC (Parallel and Distributed Computing) expert assistant.
+                    
+Context from knowledge base:
+{context}
 
-                    # multiple answers (2 candidates) + request for links
-                    resp = model.generate_content(
-                        f"{query}\n\nPlease also provide source links or references if possible.",
-                        generation_config={"candidate_count": 2}
-                    )
+Question: {query}
 
-                    st.subheader("🤖 Gemini Answers")
-                    for i, cand in enumerate(resp.candidates, 1):
-                        if cand.content.parts:
-                            answer = cand.content.parts[0].text
-                            st.markdown(f"**Answer {i}:** {answer}")
-                            st.markdown("---")
-
+Answer based on the context above. If context is not relevant, answer from your knowledge."""
+                    
+                    resp = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
+                    st.subheader("🤖 Gemini Answer")
+                    st.markdown(resp.text)
             except Exception as e:
-                st.error(f"❌ Error calling Gemini API: {e}")
+                st.error(f"❌ Error: {e}")
 
-        else:
-            st.error("⚠️ Local Engine not available. Build the index first.")
-
-# ---------------------------
-# Notes Section
-# ---------------------------
-st.info(
-    """
-    **Notes**
-    - The first run may download model weights (internet required).  
-    - The answers are extractive: taken from retrieved documents or Wikipedia-style content.  
-    - Gemini mode uses Google Gemini API. Make sure GEMINI_API_KEY is set in Streamlit secrets.  
-    - In Gemini mode, answers may also include references or links.  
-    """
-)
+st.markdown("""
+<div style='margin-top:40px;padding:16px;background:#1A1A2E;border-radius:10px;font-size:13px;color:#A0A0CC'>
+<b>Notes</b><br>
+- Local engine uses TF-IDF retrieval from PDC knowledge base<br>
+- Gemini mode uses Google AI with RAG context<br>
+- Make sure GEMINI_API_KEY is set in .streamlit/secrets.toml
+</div>
+""", unsafe_allow_html=True)
