@@ -1,6 +1,6 @@
-# Knowledge Chatbot - Saad (CCP Project)
+# PDC Knowledge Chatbot — By Saad (CCP Project)
 
-This project is a Retrieval-Augmented Generation (RAG) based chatbot that retrieves information from a custom knowledge base and generates accurate answers. It was developed as part of the Complex Computing Problem (CCP) course.  
+This project is a RAG-based chatbot for Parallel and Distributed Computing (PDC) topics. Built using TF-IDF retrieval and Google Gemini AI.
 
 ## Live Demo
 👉 [Click here to try the chatbot](https://knowledge-chatbot-saad-zflnfuzqmvtquajdp2jzhu.streamlit.app/)
@@ -8,11 +8,10 @@ This project is a Retrieval-Augmented Generation (RAG) based chatbot that retrie
 ---
 
 ## Features
-- Domain-specific knowledge base  
-- Retrieval + Google Gemini integration  
-- Simple and clean Streamlit interface  
-- Can run both locally and on the cloud  
-
+- PDC domain-specific knowledge base
+- TF-IDF Retrieval + Google Gemini integration  
+- Modern dark theme Streamlit interface  
+- Can run both locally and on the cloud
 ---
 
 ## How to Run Locally
