@@ -1,12 +1,6 @@
 streamlit
-faiss-cpu
-sentence-transformers
-PyPDF2
-numpy
 scikit-learn
-transformers
-torch
+numpy
+groq
 tqdm
 requests
-google-genai
-google-generativeai
